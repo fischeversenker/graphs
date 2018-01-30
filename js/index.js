@@ -107,7 +107,7 @@ class CanvasRenderer {
     this.ctx.strokeStyle = this.config.lineColor;
     this.ctx.lineWidth = 1;
     this.ctx.moveTo(currX, this.getFlippedY(this.getScaledY(data[0][1], max)));
-    let step = (this.width - (this.config.padding * 2)) / data.length;
+    let step = (this.width - (this.config.padding * 2)) / (data.length - 1);
     data.forEach(d => {
       this.ctx.lineTo(currX, this.getFlippedY(this.getScaledY(d[1], max)));
       currX += step;
@@ -149,7 +149,7 @@ const addDays = function(date, days = 1) {
 }
 
 const start = function() {
-  let data = randomData();
+  let data = randomData(13, 50);
   const canvas = document.querySelector('#canvas');
   canvas.width = 1000;
   canvas.height = 450;
