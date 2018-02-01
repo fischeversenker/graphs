@@ -11,16 +11,28 @@ Date.prototype.ddmmyyyy = function() {
 
 class CanvasRenderer {
   constructor(canvas, options) {
-    this.config = {
-      padding: 40,
-      lineColor: '#bbb',
+    let defaultConfig = {
+      padding: 50,
+      lineColor: '#597bc8',
+      pointColor: '#597bc8',
       gridColor: '#666',
-      secGridColor: '#2a2a2a',
       labelColor: '#59c87b',
-      labelsXEvery: 4,
-      labelsYCount: 4
+      labelsXEvery: 50,
+      labelsXAxisEvery: 50,
+      gridXEvery: 10,
+      gridYEvery: 10,
+      xRulerSep: 5,
+      labelsYCount: 10,
+      xGrid: true,
+      yGrid: true,
+      points: true,
+      lines: true,
+      pointLabels: true,
+      pointRadius: 3,
+      labelsX: true,
+      labelsY: true
     };
-    this.config = Object.assign(this.config, options);
+    this.config = Object.assign({}, defaultConfig, options);
     this.ctx = canvas.getContext('2d');
     this.width = canvas.width;
     this.height = canvas.height;
@@ -29,18 +41,13 @@ class CanvasRenderer {
   }
   // expects data to be array of [[key, val], [key, val]]
   draw(data) {
-    this.drawXScale(data, {grid: false});
-    this.drawYScale(data, {grid: true, sep: 2});
-    this.drawLinePoints(data, {labels: false, points: false});
+    // TODO: "intelligently" adjust settings to data
+    this.clear();
+    this.drawXScale(data);
+    this.drawYScale(data, {sep: 2});
+    this.drawLinePoints(data, {labels: true});
   }
-  drawXScale(data, options) {
-    let defaultOptions = {
-      sep: 5,
-      grid: false,
-      gridLineEvery: 2
-    };
-    options = options || {};
-    options = Object.assign(defaultOptions, options);
+  drawXScale(data) {
     // start axis line
     this.ctx.strokeStyle = this.config.gridColor;
     this.ctx.lineWidth = 1;
@@ -50,49 +57,34 @@ class CanvasRenderer {
     this.ctx.stroke();
     // end axis line
     let currX = 0;
-    let lastX = currX;
+    let lastGridLine = currX;
     data.forEach((d, i) => {
       currX = this.getScaledX(i, data.length - 1);
-      if(!options.grid) {
-        let len = (i % options.sep === 0) ? 10 : 5;
-        len = (i % (options.sep * 2) === 0) ? 15 : len;
-        this.ctx.beginPath();
-        this.ctx.moveTo(currX, this.height - this.config.padding);
-        this.ctx.lineTo(currX, this.height - len - this.config.padding);
-        this.ctx.stroke();
-      }
+      // draw ruler
+      let len = (i % this.config.xRulerSep === 0) ? 10 : 5;
+      len = (i % (this.config.xRulerSep * 2) === 0) ? 15 : len;
+      this.ctx.beginPath();
+      this.ctx.moveTo(currX, this.height - this.config.padding);
+      this.ctx.lineTo(currX, this.height - len - this.config.padding);
+      this.ctx.stroke();
       // draw labels
-      if (i % this.config.labelsXEvery === 0) {
+      if (this.config.labelsX && i % this.config.labelsXAxisEvery === 0) {
         this.drawLabel(d[0], currX, this.height - this.config.padding + 18);
       }
-      if(options.grid === true) {
+      // draw grid
+      if(this.config.xGrid === true && i % this.config.gridXEvery === 0) {
         this.ctx.strokeStyle = this.config.gridColor;
-        if(i % (options.sep * 2) === 0) {
-          this.ctx.strokeStyle = this.config.secGridColor;
-        }
         this.ctx.beginPath();
         this.ctx.moveTo(currX, this.height - this.config.padding);
         this.ctx.lineTo(currX, this.config.padding);
         this.ctx.stroke();
+        lastGridLine = currX;
       }
-      lastX = currX;
     });
   }
 
-  drawYScale(data, givenOptions) {
-    let defaultOptions = {
-      sep: 5,
-      grid: false,
-      gridLineEvery: 4
-    };
-    let options = givenOptions || {};
-    options = Object.assign(defaultOptions, options);
+  drawYScale(data) {
     let max = data.reduce((acc, d) => Math.max(acc, d[1]), data[0][1]);
-    // adjust separators to reasonable size
-    if(givenOptions.sep && givenOptions.sep.length > 0) {
-      options.sep = Math.min(max / 5, options.sep);
-      options.sep = Math.min(max / 2, options.sep);
-    }
     // start axis line
     this.ctx.strokeStyle = this.config.gridColor;
     this.ctx.lineWidth = 1;
@@ -101,37 +93,26 @@ class CanvasRenderer {
     this.ctx.lineTo(this.config.padding, this.config.padding);
     this.ctx.stroke();
     // end axis line
-    let currY = 0;
-    let lastY = currY;
-    for(let i = 0; i < max; i += this.innerHeight / (this.config.labelsYCount - 1)) {
-      currY = this.getFlippedY(this.getScaledY(i, max));
-      if (!options.grid) {
-        let len = (i % options.sep === 0 && i % options.sep !== 0) ? 10 : 5;
-        len = (i % (options.sep * 2) === 0) ? 15 : len;
-        this.ctx.beginPath();
-        this.ctx.moveTo(this.config.padding, currY);
-        this.ctx.lineTo(this.config.padding + len, currY);
-        this.ctx.stroke();
-      }
-      lastY = currY;
-    }
     // draw labels
     let ystep = this.innerHeight / this.config.labelsYCount;
     for(let i = 1; i <= this.config.labelsYCount; i++) {
       let y = ystep * i;
       let perc = y / this.innerHeight;
       let closestIndex = this.findClosestToPercentage(data, max, perc);
-      let d = data[closestIndex];
-      let l = d[1];
-      l = Math.round(perc * max * 10) / 10;
       let flippedY = this.getFlippedY(y) - this.config.padding;
-      this.drawLabel(l + '', this.config.padding - 4, flippedY + 4, 'right');
-      if (options.grid === true) {
-        // this.ctx.strokeStyle = () ? this.config.gridColor;
+      // draw ruler
+      this.ctx.beginPath();
+      this.ctx.moveTo(this.config.padding, flippedY);
+      this.ctx.lineTo(this.config.padding + 10, flippedY);
+      this.ctx.stroke();
+      // draw labels
+      if (this.config.labelsY) {
+        let l = Math.round(perc * max * 10) / 10;
+        this.drawLabel(l + '', this.config.padding - 4, flippedY + 4, 'right');
+      }
+      // draw grid
+      if (this.config.yGrid === true) {
         this.ctx.strokeStyle = this.config.gridColor;
-        if(i % options.sep !== 0) {
-          this.ctx.strokeStyle = this.config.secGridColor;
-        }
         this.ctx.beginPath();
         this.ctx.moveTo(this.config.padding, flippedY);
         this.ctx.lineTo(this.width - this.config.padding, flippedY);
@@ -139,35 +120,47 @@ class CanvasRenderer {
       }
     }
   }
-  drawLinePoints(data, options = {}) {
-    options = Object.assign({
-      labels: false,
-      labelsEvery: 4,
-      radius: 3,
-      points: true
-    }, options);
-    this.clear();
+  drawLinePoints(data) {
     let currX = this.config.padding;
     let max = data.reduce((acc, d) => Math.max(acc, d[1]), 0);
-
-    this.ctx.beginPath();
-    this.ctx.strokeStyle = this.config.lineColor;
     this.ctx.lineWidth = 1;
-    this.ctx.moveTo(currX, this.getFlippedY(this.getScaledY(data[0][1], max)));
+
     let step = this.innerWidth / (data.length - 1);
+    let lastX = this.config.padding;
+    let lastY = this.getFlippedY(this.getScaledY(data[0][1], max));
     data.forEach((d, i) => {
       let y = this.getFlippedY(this.getScaledY(d[1], max));
-      this.ctx.lineTo(currX, y);
-      if(options.points === true) {
-        this.ctx.arc(currX, y, options.radius, 0, 2 * Math.PI);
+      // draw lines
+      if(this.config.lines === true) {
+        this.ctx.strokeStyle = this.config.lineColor;
+        this.ctx.beginPath();
+        this.ctx.moveTo(lastX, lastY);
+        this.ctx.lineTo(currX, y);
+        this.ctx.stroke();
       }
-      this.ctx.moveTo(currX, y);
-      if(options.labels === true && i % options.labelsEvery === 0) {
-        this.drawLabel(d[1], currX + 6, y - 4, 'left');
+      // draw points
+      if(this.config.points === true) {
+        this.ctx.strokeStyle = this.config.pointColor;
+        this.ctx.beginPath();
+        this.ctx.moveTo(currX, y);
+        this.ctx.arc(currX, y, this.config.pointRadius, 0, 2 * Math.PI);
+        this.ctx.moveTo(currX, y);
+        this.ctx.stroke();
       }
+      // draw lables
+      if(this.config.pointLabels === true && i % this.config.labelsXEvery === 0) {
+        this.ctx.strokeStyle = this.config.labelColor;
+        this.ctx.beginPath();
+        this.ctx.moveTo(currX, y);
+        this.ctx.lineTo(currX, y - 40);
+        this.drawLabel(d[1], currX, y - 40, 'left');
+        this.ctx.stroke();
+      }
+      // update xs and ys
+      lastX = currX;
+      lastY = y;
       currX += step;
     });
-    this.ctx.stroke();
   }
   drawLabel(l, x, y, align = 'center') {
     this.ctx.fillStyle = this.config.labelColor;
@@ -199,8 +192,7 @@ class CanvasRenderer {
     return this.height - y;
   }
   clear() {
-    this.ctx.fillStyle = 'transparent';
-    this.ctx.fillRect(0, 0, this.width, this.height);
+    this.ctx.clearRect(0, 0, this.width, this.height);
   }
 }
 
@@ -215,25 +207,75 @@ const randomData = function(count = 100, max = 200) {
     startDate = addDays(startDate);
   }
   return data;
-}
+};
+
+const randomData2 = function(count = 100) {
+  let data = [];
+  let startX = 1;
+  let startY = 1;
+  for(let i = 0; i < count; i++) {
+    data.push([i, i * startY + Math.random() * i]);
+  }
+  return data;
+};
+
+const randomData3 = function(count = 100) {
+  let data = [];
+  for(let i = 0; i < count; i++) {
+    data.push([i, Math.log(i)]);
+    // data.push([i, i * startY + Math.random() * i]);
+  }
+  return data;
+};
 
 const addDays = function(date, days = 1) {
   let d = new Date();
   d.setDate(date.getDate() + days);
   return d;
-}
+};
 
 const start = function() {
-  let data = randomData(100, 130);
+  let data = randomData(200);
   const canvas = document.querySelector('#canvas');
   canvas.width = 1000;
-  canvas.height = 450;
-  const cRenderer = new CanvasRenderer(canvas, {
-    labelsXEvery: 20,
-    labelsYCount: 4
-  });
+  canvas.height = 500;
+  const cRenderer = new CanvasRenderer(canvas);
   cRenderer.draw(data);
 
-}
+  let gui = new dat.GUI();
+  let graph = gui.addFolder('graph');
+  let grid = gui.addFolder('grid');
+  let axis = gui.addFolder('axis');
+  let colors = gui.addFolder('colors');
+
+  grid.add(cRenderer.config, 'yGrid').name('draw Y-grid').onChange(update);
+  grid.add(cRenderer.config, 'xGrid').name('draw X-drid').onChange(update);
+  grid.add(cRenderer.config, 'gridXEvery', 1, 100).name('X-grid every').step(1).listen().onChange(update);
+  grid.add(cRenderer.config, 'gridYEvery', 1, 100).name('Y-grid every').step(1).listen().onChange(update);
+
+  graph.add(cRenderer.config, 'points').name('draw points').onChange(update);
+  graph.add(cRenderer.config, 'lines').name('draw lines').onChange(update);
+  graph.add(cRenderer.config, 'pointLabels').name('draw labels').onChange(update);
+  graph.add(cRenderer.config, 'pointRadius', 1, 20).step(1).name('radius of points').onChange(update);
+  graph.add(cRenderer.config, 'labelsXEvery', 1, 100).step(1).name('labels every').onChange(update);
+
+  axis.add(cRenderer.config, 'labelsX').name('draw X-labels').onChange(update);
+  axis.add(cRenderer.config, 'labelsY').name('draw Y-labels').onChange(update);
+  axis.add(cRenderer.config, 'labelsYCount', 1, 20).step(1).name('# of Y-labels').onChange(update);
+  axis.add(cRenderer.config, 'labelsXAxisEvery', 1, 100).step(1).name('X-labels every').onChange(update);
+
+  colors.addColor(cRenderer.config, 'lineColor').onChange(update);
+  colors.addColor(cRenderer.config, 'gridColor').onChange(update);
+  colors.addColor(cRenderer.config, 'pointColor').onChange(update);
+  colors.addColor(cRenderer.config, 'labelColor').onChange(update);
+
+  function update() {
+    window.requestAnimationFrame(() => {
+      cRenderer.draw(data);
+    });
+  }
+
+  gui.remember(cRenderer.config);
+};
 
 start();
