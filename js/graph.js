@@ -17,6 +17,7 @@ class CanvasGraph extends Graph {
     super();
     let defaultConfig = {
       padding: 50,
+      backgroundColor: '#151619',
       lineColor: '#597bc8',
       pointColor: '#597bc8',
       gridColor: '#666',
@@ -240,6 +241,7 @@ class CanvasGraph extends Graph {
     return this.height - y;
   }
   clear() {
-    this.ctx.clearRect(0, 0, this.width, this.height);
+    this.ctx.fillStyle = this.config.backgroundColor;
+    this.ctx.fillRect(0, 0, this.width, this.height);
   }
 }

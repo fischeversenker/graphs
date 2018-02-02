@@ -1,7 +1,5 @@
 const start = function() {
   const canvas = document.querySelector('#canvas');
-  canvas.width = 1000;
-  canvas.height = 500;
 
   // graph setup
   let setup = {
@@ -11,6 +9,7 @@ const start = function() {
   }
   let options = {
     padding: 50,
+    backgroundColor: '#151619',
     lineColor: '#597bc8',
     pointColor: '#597bc8',
     gridColor: '#666',
@@ -80,6 +79,7 @@ const start = function() {
   axisFolder.add(options, 'labelsYAxisEvery', 1, 100).step(1).name('Y-labels every').onChange(update);
   axisFolder.add(options, 'labelsXAxisEvery', 1, 100).step(1).name('X-labels every').onChange(update);
 
+  colorsFolder.addColor(options, 'backgroundColor').onChange(update);
   colorsFolder.addColor(options, 'lineColor').onChange(update);
   colorsFolder.addColor(options, 'gridColor').onChange(update);
   colorsFolder.addColor(options, 'pointColor').onChange(update);
