@@ -13,7 +13,7 @@ class Graph {
 }
 
 class CanvasGraph extends Graph {
-  constructor(canvas, options) {
+  constructor(canvas, options = {}) {
     super();
     let defaultConfig = {
       padding: 50,
@@ -31,7 +31,7 @@ class CanvasGraph extends Graph {
       gridY: true,
       points: true,
       lines: true,
-      pointLabels: true,
+      pointLabels: false,
       pointRadius: 3,
       labelsX: true,
       labelsY: true,
