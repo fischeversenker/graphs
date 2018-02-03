@@ -127,10 +127,11 @@ class CanvasGraph extends Graph {
   }
 
   // TODO: Setting labelsYAxisEvery = 10 draws a label for every 10th datapoint.
-  // Should instead draw at every 10th increment.
+  // Should instead draw at every 10th value-increment.
   // TODO: Lower bound is always 0. Implement intelligent lower bound. See temperature-graph.
   drawYScale() {
     let max = this.data.reduce((acc, d) => acc > d[1] ? acc : d[1], this.data[0][1]);
+    let min = this.data.reduce((acc, d) => acc < d[1] ? acc : d[1], this.data[0][1]);
     // start axis line
     this.ctx.strokeStyle = this.config.gridColor;
     this.ctx.lineWidth = 1;
@@ -139,34 +140,64 @@ class CanvasGraph extends Graph {
     this.ctx.lineTo(this.config.padding, this.config.padding);
     this.ctx.stroke();
     // end axis line
-    let maxYSteps = !this.dataProperties.nominal ? this.data.length : this.dataSet.size;
-    for (let i = 0; i < maxYSteps; i++) {
-      let d = this.data[i];
-      let y = i / (maxYSteps - 1) * this.innerHeight;
-      let perc = y / this.innerHeight;
-      let flippedY = this.getFlippedY(y + this.config.padding);
-      // draw ruler
-      if (!this.config.gridY) {
-        this.ctx.beginPath();
-        this.ctx.moveTo(this.config.padding, flippedY);
-        this.ctx.lineTo(this.config.padding + 10, flippedY);
-        this.ctx.stroke();
-      }
-      // draw labels
-      if (this.config.labelsY === true && i % this.config.labelsYAxisEvery === 0) {
-        let l = d[1];
-        if (!this.dataProperties.nominal) {
-          l = perc * max;
+
+    if (this.dataProperties.nominal) {
+      for (let i = 0; i < this.dataSet.size; i++) {
+        let d = this.data[i];
+        let y = i / (this.dataSet.size - 1) * this.innerHeight;
+        let perc = y / this.innerHeight;
+        let flippedY = this.getFlippedY(y + this.config.padding);
+        // draw ruler
+        if (!this.config.gridY) {
+          this.ctx.beginPath();
+          this.ctx.moveTo(this.config.padding, flippedY);
+          this.ctx.lineTo(this.config.padding + 10, flippedY);
+          this.ctx.stroke();
         }
-        this.drawLabel(l, this.config.padding - 4, flippedY + 4, 'right');
+        // draw labels
+        if (this.config.labelsY === true && i % this.config.labelsYAxisEvery === 0) {
+          let l = d[1];
+          this.drawLabel(l, this.config.padding - 4, flippedY + 4, 'right');
+        }
+        // draw grid
+        if (this.config.gridY === true && i % this.config.gridYEvery === 0) {
+          this.ctx.strokeStyle = this.config.gridColor;
+          this.ctx.beginPath();
+          this.ctx.moveTo(this.config.padding, flippedY);
+          this.ctx.lineTo(this.width - this.config.padding, flippedY);
+          this.ctx.stroke();
+        }
       }
-      // draw grid
-      if (this.config.gridY === true && i % this.config.gridYEvery === 0) {
-        this.ctx.strokeStyle = this.config.gridColor;
-        this.ctx.beginPath();
-        this.ctx.moveTo(this.config.padding, flippedY);
-        this.ctx.lineTo(this.width - this.config.padding, flippedY);
-        this.ctx.stroke();
+    } else {
+      // TODO: If min < 0 draw 0-line in graph
+      for (let i = 0; i < this.data.length; i++) {
+        let d = this.data[i];
+        let y = i / (this.data.length - 1) * this.innerHeight;
+        let perc = y / this.innerHeight;
+        let flippedY = this.getFlippedY(y + this.config.padding);
+        // draw ruler
+        if (!this.config.gridY) {
+          this.ctx.beginPath();
+          this.ctx.moveTo(this.config.padding, flippedY);
+          this.ctx.lineTo(this.config.padding + 10, flippedY);
+          this.ctx.stroke();
+        }
+        // draw labels
+        if (this.config.labelsY === true && i % this.config.labelsYAxisEvery === 0) {
+          let l = perc * max;
+          // 0% -> min
+          // 50% -> (min+max)/2
+          // 100% -> max
+          this.drawLabel(l, this.config.padding - 4, flippedY + 4, 'right');
+        }
+        // draw grid
+        if (this.config.gridY === true && i % this.config.gridYEvery === 0) {
+          this.ctx.strokeStyle = this.config.gridColor;
+          this.ctx.beginPath();
+          this.ctx.moveTo(this.config.padding, flippedY);
+          this.ctx.lineTo(this.width - this.config.padding, flippedY);
+          this.ctx.stroke();
+        }
       }
     }
   }
